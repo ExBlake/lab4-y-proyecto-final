@@ -20,7 +20,7 @@
 ### 1. Clonar el Repositorio y Configurar el Entorno
 ```bash
 # Clonar el repositorio
-git clone https://github.com/juanfelipepc3/lab4-analisis-algoritmos.git
+git clone https://github.com/ExBlake/lab4-y-proyecto-final.git
 cd lab4-analisis-algoritmos
 
 # Crear y activar entorno virtual
