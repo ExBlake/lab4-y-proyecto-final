@@ -341,3 +341,86 @@ El cliente informa que **cada subregión recibe entre 40 y 120 solicitudes al me
 **Comparación con la ventana operativa:**  
 La plataforma Pulso tiene una ventana nocturna de 4 horas (01:00 a 05:00 = 14.400 segundos) destinada a las operaciones 1 y 2. Si la programación de unidades móviles se integrara en dicha rutina mensual, la estrategia voraz requeriría **$0.00031$ segundos**, lo cual representa únicamente el **$0.000002\%$** de la ventana disponible. Cabe con holgura absoluta.
 
+### 5. Análisis comparativo 
+
+### Contraejemplo de la Regla Actual
+A continuación se demuestra formalmente la falla estructural del procedimiento que usa hoy la organización (orden de llegada / FCFS):
+
+**Instancia del Contraejemplo:**  
+Un municipio radica a primera hora del mes una solicitud extensa ($R_1$), y posteriormente llegan tres solicitudes de municipios vecinos ($R_2, R_3, R_4$) con alta concentración de pacientes en riesgo:
+- **Solicitud 1:** `(60, 480, 20)` $\rightarrow$ Duración: 420 min (01:00 a 08:00), 20 pacientes.
+- **Solicitud 2:** `(60, 180, 25)` $\rightarrow$ Duración: 120 min (01:00 a 03:00), 25 pacientes.
+- **Solicitud 3:** `(180, 300, 30)` $\rightarrow$ Duración: 120 min (03:00 a 05:00), 30 pacientes.
+- **Solicitud 4:** `(300, 420, 28)` $\rightarrow$ Duración: 120 min (05:00 a 07:00), 28 pacientes.
+
+**Comportamiento de la Regla Actual (FCFS):**
+1. Recibe $R_1$: al estar libre la agenda, **acepta $R_1$**.
+2. Recibe $R_2$: cruza con $R_1$ en $[60, 180) \rightarrow$ **Rechazada**.
+3. Recibe $R_3$: cruza con $R_1$ en $[180, 300) \rightarrow$ **Rechazada**.
+4. Recibe $R_4$: cruza con $R_1$ en $[300, 420) \rightarrow$ **Rechazada**.
+- *Resultado Regla Actual:* **1 jornada asignada**, **20 pacientes atendidos**.
+
+**Comportamiento de la Estrategia Voraz:**
+1. Ordena por hora de finalización: $R_2$ (fin 180), $R_3$ (fin 300), $R_4$ (fin 420), $R_1$ (fin 480).
+2. Selecciona $R_2$ (fin 180).
+3. Selecciona $R_3$ (inicio $180 \ge 180$, fin 300).
+4. Selecciona $R_4$ (inicio $300 \ge 300$, fin 420).
+5. Descarta $R_1$ (inicio $60 < 420$).
+- *Resultado Estrategia Voraz:* **3 jornadas asignadas**, **83 pacientes atendidos**.
+
+**Diferencia Cuantificada:**  
+- **$+2$ jornadas adicionales (+200% de incremento en cobertura de municipios).**
+- **$+63$ pacientes adicionales (+315% de incremento en pacientes atendidos).**
+
+*Causa del fallo:* La regla FCFS es miope; premia la velocidad burocrática de radicación en lugar de la compatibilidad temporal y la optimización del recurso móvil.
+
+### Condición Contraria: ¿Cuándo sería adecuada la Programación Dinámica?
+Para que una estrategia de **Programación Dinámica** fuera la adecuada en lugar de la estrategia voraz, el problema tendría que modificarse de la siguiente manera:
+- **Cambio de objetivo:** Si el negocio no deseara maximizar el número de jornadas ($|S|$), sino **maximizar el número total de pacientes de alto riesgo atendidos**, donde cada jornada $j$ tiene un beneficio arbitrario $w_j = pacientes_j$.
+- **Colapso de la propiedad voraz:** En ese escenario (*Weighted Interval Scheduling*), la propiedad de elección voraz por tiempo de terminación deja de cumplirse. Por ejemplo, una jornada corta que termine primero puede tener 2 pacientes, mientras una jornada que se solapa ligeramente puede tener 200 pacientes. Ninguna regla voraz pura garantiza el óptimo global bajo pesos heterogéneos.
+- **Estrategia requerida:** Se requeriría Programación Dinámica con subestructura óptima y subproblemas traslapados, ordenada por tiempos de fin y empleando búsqueda binaria para hallar el predecesor compatible $p(j)$:
+  $$OPT(j) = \max \Big(w_j + OPT(p(j)), \; OPT(j-1) \Big), \quad OPT(0) = 0$$
+  cuya complejidad temporal es $\Theta(n \log n)$ mediante memoización o tabulación.
+
+### Recomendación para la Organización
+1. **Adopción inmediata:** Se recomienda a la Secretaría de Salud sustituir las hojas de cálculo y la regla por orden de llegada por la **Estrategia Voraz de Selección de Actividades**.
+2. **Beneficios directos:**
+   - Incremento entre el 100% y 200% en la cantidad de visitas municipales efectivas por subregión.
+   - Eliminación de la discrecionalidad y del sesgo geográfico por radicación temprana.
+   - Tiempo de cálculo despreciable ($< 1\text{ ms}$ mensual para todo el departamento).
+3. **Riesgos y límites:** Si en el futuro la Secretaría define que el criterio rector del sistema debe ser el volumen absoluto de pacientes clínicos en riesgo severo por encima de la cobertura municipal geográfica, la plataforma deberá migrar al modelo de programación dinámica de intervalos ponderados.
+
+### 6. Implicaciones éticas, sociales y ambientales 
+
+### Consumo Energético
+El caso especifica que la Secretaría opera en un **servidor dedicado único de aproximadamente 380 W** ($0.380\text{ kW}$) bajo carga sostenida. El consumo eléctrico se rige por la relación:
+$$\text{Energía (kWh)} = \text{Potencia (kW)} \times \text{Tiempo (horas)}$$
+
+#### Estimación para el volumen mensual real (9 subregiones, 1.080 solicitudes en total):
+- **Estrategia Voraz:**
+  - Tiempo de CPU: $0.31\text{ ms} = 0.00031\text{ s} = \frac{0.00031}{3600}\text{ h} \approx 8.61 \times 10^{-8}\text{ horas/mes}$.
+  - Consumo mensual: $0.380\text{ kW} \times 8.61 \times 10^{-8}\text{ h} \approx \mathbf{3.27 \times 10^{-8}\text{ kWh/mes}}$.
+  - Consumo anual (12 meses): $\mathbf{3.93 \times 10^{-7}\text{ kWh/año}}$.
+- **Regla Actual (FCFS):**
+  - Tiempo de CPU: $1.94\text{ ms} = 0.00194\text{ s} = \frac{0.00194}{3600}\text{ h} \approx 5.39 \times 10^{-7}\text{ horas/mes}$.
+  - Consumo mensual: $0.380\text{ kW} \times 5.39 \times 10^{-7}\text{ h} \approx \mathbf{2.05 \times 10^{-7}\text{ kWh/mes}}$.
+  - Consumo anual (12 meses): $\mathbf{2.46 \times 10^{-6}\text{ kWh/año}}$.
+
+#### Comparación y Proyección Anual:
+- **Diferencia energética directa:** La estrategia voraz ahorra aproximadamente $2.07 \times 10^{-6}\text{ kWh/año}$ en el procesamiento de esta operación.
+- **Eficiencia del algoritmo frente al enfoque exhaustivo:** Mientras que la solución exhaustiva demandaría una cantidad de energía superior al consumo histórico de la civilización humana sin llegar a terminar ($> 10^{20}\text{ años}$ a $380\text{ W}$), la estrategia voraz opera en una fracción de milisegundo con una huella de carbono prácticamente nula.
+- **Dimensión social y ética:** El verdadero beneficio ético y ambiental radica en la **eficiencia del transporte y la equidad en salud**: la asignación voraz evita viajes redundantes o unidades móviles ociosas varadas en subregiones, minimizando el consumo de combustible de las unidades móviles y garantizando atención oportuna a los pacientes con mayor riesgo de complicaciones por diabetes no diagnosticada.
+
+### 7. Conclusiones 
+
+1. Se demostró teórica y experimentalmente que la asignación por orden de llegada (FCFS) puede producir resultados subóptimos frente a la programación de jornadas municipales. Al no considerar la duración ni la hora de finalización de las solicitudes, este criterio puede desaprovechar intervalos disponibles y limitar la cantidad de jornadas programadas. En un contexto de salud pública, esto puede afectar el aprovechamiento de los recursos y generar diferencias en las oportunidades de atención entre subregiones.
+
+2. La estrategia voraz de selección de actividades garantiza matemáticamente la máxima cantidad de jornadas compatibles sin cruces horarios, siempre que el objetivo sea maximizar el número de jornadas y se cumplan los supuestos del modelo. Su complejidad temporal de \(\Theta(n \log n)\) permite procesar eficientemente grandes cantidades de solicitudes. Experimentalmente, alcanzó un tiempo de 1.7333 ms para 5000 solicitudes, lo que respalda su viabilidad para el escenario planteado.
+
+3. Se comprobó que la estrategia voraz obtuvo la misma cantidad de jornadas que el algoritmo exhaustivo en todas las instancias evaluadas durante las pruebas comparativas. Esto respalda su corrección para el objetivo de maximizar la cantidad de jornadas, utilizando la solución exhaustiva como referencia de comparación. Sin embargo, ambos algoritmos no necesariamente seleccionan las mismas solicitudes ni garantizan la misma cantidad de pacientes atendidos.
+
+4. La comparación de rendimiento mostró que la estrategia voraz es más eficiente que la regla actual y resulta adecuada para el volumen esperado de solicitudes. Para una instancia de 5000 solicitudes, su tiempo de ejecución fue aproximadamente un 82 % menor que el de FCFS. Además, para el escenario de nueve subregiones con hasta 120 solicitudes cada una, el tiempo estimado de procesamiento conjunto fue de 0.2709 ms.
+
+5. Finalmente, se identificó que maximizar la cantidad de jornadas no equivale necesariamente a maximizar la cantidad de pacientes de alto riesgo atendidos. Por ello, si las prioridades institucionales cambian y se requiere dar mayor peso a la población atendida o a criterios de equidad territorial, será necesario adaptar el modelo de optimización para incorporar dichos objetivos.
+
+En conjunto, los resultados respaldan la adopción de la estrategia voraz como alternativa a FCFS para la programación de jornadas de las unidades móviles, debido a su garantía de optimalidad respecto al número de jornadas, su eficiencia computacional y su adecuación al volumen de solicitudes del problema.
