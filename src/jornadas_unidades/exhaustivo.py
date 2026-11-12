@@ -1,45 +1,103 @@
-"""Solución exhaustiva: prueba todos los subconjuntos de solicitudes.
+"""Solución exhaustiva para la programación de jornadas de la unidad móvil."""
 
-Es la solución exacta con la que se verifica la estrategia voraz. Su costo
-es O(2^n · n log n), así que solo se ejecuta con instancias pequeñas.
-"""
+from itertools import combinations
+import sys
+import os
 
-from estrategia import Jornada, hay_cruce, validar_solicitudes
+# Tipo Jornada: (inicio, fin, pacientes_alto_riesgo); inicio y fin en minutos.
+Jornada = tuple[int, int, int]
 
-# Por encima de este tamaño la búsqueda exhaustiva deja de ser práctica.
-MAXIMO_EXHAUSTIVO = 22
+
+def hay_cruce(jornadas: list[Jornada]) -> bool:
+    """Indica si alguna pareja de jornadas se cruza.
+
+    Args:
+        jornadas: jornadas a revisar.
+
+    Returns:
+        True si dos jornadas se cruzan; False en caso contrario.
+    """
+    if len(jornadas) <= 1:
+        return False
+
+    jornadas_ordenadas = sorted(jornadas, key=lambda j: (j[0], j[1]))
+    max_fin = jornadas_ordenadas[0][1]
+
+    for i in range(1, len(jornadas_ordenadas)):
+        inicio_actual, fin_actual, _ = jornadas_ordenadas[i]
+        if inicio_actual < max_fin:
+            return True
+        if fin_actual > max_fin:
+            max_fin = fin_actual
+
+    return False
 
 
 def seleccionar_exhaustivo(solicitudes: list[Jornada]) -> list[Jornada]:
     """Elige el mejor subconjunto sin cruces probando todos los subconjuntos.
 
-    Recorre las 2^n máscaras de bits; cada bit indica si la solicitud
-    correspondiente entra al subconjunto. Descarta los subconjuntos con
-    cruces y se queda con el de mayor número de jornadas.
-
     Args:
         solicitudes: solicitudes del mes de una subregión.
 
     Returns:
-        Un subconjunto óptimo para el mismo criterio (máximo número de
-        jornadas sin cruces), ordenado por hora de inicio.
-
-    Raises:
-        ValueError: si la instancia supera MAXIMO_EXHAUSTIVO solicitudes o
-            alguna solicitud es inválida.
+        Un subconjunto óptimo para el mismo criterio.
     """
-    validar_solicitudes(solicitudes)
     n = len(solicitudes)
-    if n > MAXIMO_EXHAUSTIVO:
-        raise ValueError(
-            f"La búsqueda exhaustiva solo admite hasta {MAXIMO_EXHAUSTIVO} "
-            f"solicitudes; se recibieron {n}."
-        )
+    if n == 0:
+        return []
 
-    mejor: list[Jornada] = []
-    for mascara in range(1 << n):
-        subconjunto = [solicitudes[i] for i in range(n) if mascara >> i & 1]
-        if len(subconjunto) > len(mejor) and not hay_cruce(subconjunto):
-            mejor = subconjunto
+    mejor_subconjunto: list[Jornada] = []
+    mejor_num_jornadas = 0
+    mejor_pacientes = -1
 
-    return sorted(mejor)
+    # Evaluar todos los 2^n subconjuntos posibles
+    for r in range(1, n + 1):
+        for combo in combinations(solicitudes, r):
+            candidato = list(combo)
+            if not hay_cruce(candidato):
+                total_pacientes = sum(j[2] for j in candidato)
+                if r > mejor_num_jornadas:
+                    mejor_num_jornadas = r
+                    mejor_pacientes = total_pacientes
+                    mejor_subconjunto = candidato
+                elif r == mejor_num_jornadas and total_pacientes > mejor_pacientes:
+                    mejor_pacientes = total_pacientes
+                    mejor_subconjunto = candidato
+
+    return sorted(mejor_subconjunto, key=lambda j: (j[0], j[1]))
+
+
+def seleccionar_exhaustivo_con_conteo(solicitudes: list[Jornada]) -> tuple[list[Jornada], int]:
+    """Ejecuta la solución exhaustiva registrando las operaciones elementales.
+
+    Args:
+        solicitudes: lista de solicitudes del mes.
+
+    Returns:
+        Tupla con el subconjunto óptimo y el total de operaciones/combinaciones exploradas.
+    """
+    n = len(solicitudes)
+    if n == 0:
+        return [], 0
+
+    operaciones = 0
+    mejor_subconjunto: list[Jornada] = []
+    mejor_num_jornadas = 0
+    mejor_pacientes = -1
+
+    for r in range(1, n + 1):
+        for combo in combinations(solicitudes, r):
+            operaciones += 1
+            candidato = list(combo)
+            if not hay_cruce(candidato):
+                operaciones += 1
+                total_pacientes = sum(j[2] for j in candidato)
+                if r > mejor_num_jornadas:
+                    mejor_num_jornadas = r
+                    mejor_pacientes = total_pacientes
+                    mejor_subconjunto = candidato
+                elif r == mejor_num_jornadas and total_pacientes > mejor_pacientes:
+                    mejor_pacientes = total_pacientes
+                    mejor_subconjunto = candidato
+
+    return sorted(mejor_subconjunto, key=lambda j: (j[0], j[1])), operaciones

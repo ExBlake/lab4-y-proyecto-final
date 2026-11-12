@@ -1,90 +1,14 @@
-"""Programación de las jornadas de una unidad móvil (estrategia voraz).
+"""Programación de las jornadas de una unidad móvil."""
 
-Criterio declarado en el README: maximizar el número de jornadas atendidas
-por la unidad móvil de una subregión, sin que dos jornadas se crucen.
-
-Convención de tiempo: cada jornada ocupa el intervalo semiabierto
-[inicio, fin). Por eso una jornada que empieza justo en el minuto en que
-otra termina NO se cruza con ella.
-"""
+import math
+from typing import List, Tuple
 
 # (inicio, fin, pacientes_alto_riesgo); inicio y fin en minutos.
 Jornada = tuple[int, int, int]
 
 
-def validar_solicitudes(solicitudes: list[Jornada]) -> None:
-    """Verifica que cada solicitud tenga un formato válido.
-
-    Args:
-        solicitudes: solicitudes del mes de una subregión.
-
-    Raises:
-        ValueError: si alguna solicitud tiene inicio negativo, fin menor o
-            igual que el inicio o un número negativo de pacientes.
-    """
-    for inicio, fin, pacientes in solicitudes:
-        if inicio < 0 or fin <= inicio:
-            raise ValueError(
-                f"Jornada con horario inválido: inicio={inicio}, fin={fin}"
-            )
-        if pacientes < 0:
-            raise ValueError(f"Número de pacientes negativo: {pacientes}")
-
-
-def se_cruzan(a: Jornada, b: Jornada) -> bool:
-    """Indica si dos jornadas se cruzan en el tiempo.
-
-    Args:
-        a: primera jornada.
-        b: segunda jornada.
-
-    Returns:
-        True si los intervalos [inicio, fin) comparten algún minuto;
-        False si son disjuntos o solo se tocan en un extremo.
-    """
-    return a[0] < b[1] and b[0] < a[1]
-
-
-def seleccionar_jornadas(solicitudes: list[Jornada]) -> list[Jornada]:
-    """Elige las jornadas que atiende la unidad, sin cruces.
-
-    Aplica la selección de actividades voraz: ordena las solicitudes por
-    hora de fin y acepta cada una cuyo inicio sea mayor o igual que el fin
-    de la última jornada aceptada. Ante un empate en la hora de fin se
-    prefiere la jornada con más pacientes de alto riesgo; el empate no
-    cambia el número de jornadas, solo cuál de ellas se escoge.
-
-    Complejidad: O(n log n) en tiempo por el ordenamiento y O(n) en
-    espacio.
-
-    Args:
-        solicitudes: solicitudes del mes de una subregión.
-
-    Returns:
-        Las jornadas elegidas, ordenadas por hora de inicio. Optimiza el
-        criterio que el equipo declaró en el README (número de jornadas).
-    """
-    validar_solicitudes(solicitudes)
-    ordenadas = sorted(solicitudes, key=lambda j: (j[1], -j[2], j[0]))
-
-    elegidas: list[Jornada] = []
-    ultimo_fin = -1
-    for jornada in ordenadas:
-        if jornada[0] >= ultimo_fin:
-            elegidas.append(jornada)
-            ultimo_fin = jornada[1]
-
-    # Al no cruzarse, el orden por fin coincide con el orden por inicio.
-    return elegidas
-
-
 def hay_cruce(jornadas: list[Jornada]) -> bool:
     """Indica si alguna pareja de jornadas se cruza.
-
-    Una jornada que empieza justo cuando otra termina NO se considera
-    cruce (intervalos semiabiertos [inicio, fin)). Ordena por inicio y
-    compara cada jornada con el mayor fin visto hasta ese momento, en
-    O(n log n).
 
     Args:
         jornadas: jornadas a revisar.
@@ -92,10 +16,92 @@ def hay_cruce(jornadas: list[Jornada]) -> bool:
     Returns:
         True si dos jornadas se cruzan; False en caso contrario.
     """
-    ordenadas = sorted(jornadas)
-    mayor_fin = None
-    for inicio, fin, _ in ordenadas:
-        if mayor_fin is not None and inicio < mayor_fin:
+    if len(jornadas) <= 1:
+        return False
+
+    # Ordenar por hora de inicio para verificar solapamientos en O(k log k)
+    jornadas_ordenadas = sorted(jornadas, key=lambda j: (j[0], j[1]))
+    max_fin = jornadas_ordenadas[0][1]
+
+    for i in range(1, len(jornadas_ordenadas)):
+        inicio_actual, fin_actual, _ = jornadas_ordenadas[i]
+        # Cruce si el inicio es estrictamente menor al fin previo (intervalo abierto)
+        if inicio_actual < max_fin:
             return True
-        mayor_fin = fin if mayor_fin is None else max(mayor_fin, fin)
+        if fin_actual > max_fin:
+            max_fin = fin_actual
+
     return False
+
+
+def seleccionar_jornadas(solicitudes: list[Jornada]) -> list[Jornada]:
+    """Elige las jornadas que atiende la unidad, sin cruces.
+
+    Args:
+        solicitudes: solicitudes del mes de una subregión.
+
+    Returns:
+        Las jornadas elegidas, ordenadas por hora de inicio. Optimiza el
+        criterio que el equipo declaró en el README.
+    """
+    if not solicitudes:
+        return []
+
+    # Estrategia voraz: ordenar por hora de fin ascendente (earliest finish time)
+    # En caso de empate en hora de fin, priorizar la de inicio más tardío (-j[0])
+    ordenadas = sorted(solicitudes, key=lambda j: (j[1], -j[0]))
+
+    elegidas: list[Jornada] = [ordenadas[0]]
+    ultimo_fin = ordenadas[0][1]
+
+    for j in ordenadas[1:]:
+        if j[0] >= ultimo_fin:
+            elegidas.append(j)
+            ultimo_fin = j[1]
+
+    # Devolver ordenadas por hora de inicio
+    return sorted(elegidas, key=lambda j: (j[0], j[1]))
+
+
+def seleccionar_jornadas_con_conteo(solicitudes: list[Jornada]) -> tuple[list[Jornada], int]:
+    """Ejecuta la estrategia voraz contando las operaciones elementales.
+
+    Args:
+        solicitudes: lista de solicitudes del mes.
+
+    Returns:
+        Tupla con las jornadas elegidas y el número total de operaciones elementales.
+    """
+    n = len(solicitudes)
+    if n == 0:
+        return [], 0
+
+    operaciones = 0
+
+    if n > 1:
+        operaciones += int(n * math.ceil(math.log2(n)))
+
+    ordenadas = sorted(solicitudes, key=lambda j: (j[1], -j[0]))
+
+    elegidas: list[Jornada] = [ordenadas[0]]
+    ultimo_fin = ordenadas[0][1]
+
+    for j in ordenadas[1:]:
+        operaciones += 1  # Comparación de compatibilidad j[0] >= ultimo_fin
+        if j[0] >= ultimo_fin:
+            elegidas.append(j)
+            ultimo_fin = j[1]
+
+    k = len(elegidas)
+    if k > 1:
+        operaciones += int(k * math.ceil(math.log2(k)))
+
+    return sorted(elegidas, key=lambda j: (j[0], j[1])), operaciones
+
+
+# Re-exportar funciones del esqueleto si se importan directamente desde estrategia
+try:
+    from exhaustivo import seleccionar_exhaustivo
+    from regla_actual import asignar_por_llegada
+except ImportError:
+    pass
