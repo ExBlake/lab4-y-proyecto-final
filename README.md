@@ -103,6 +103,12 @@ La propiedad de elección voraz se justifica mediante un argumento de intercambi
 
 Además, después de seleccionar una jornada, el problema restante consiste en seleccionar la mayor cantidad de jornadas compatibles con ella, conservando la misma estructura del problema original.
 
+### Criterio de Selección y Recurrencia
+- **Criterio Voraz:** En cada paso, elegir la jornada compatible no seleccionada cuya hora de finalización sea mínima:
+  $$j^* = \arg\min_{j \in C_t} (fin_j), \quad \text{donde } C_t = \{j \in S \mid inicio_j \ge t_{\text{actual}}\}$$
+  En caso de empate en la hora de finalización, se desempata por la hora de inicio más tardía (menor duración), liberando la mayor ventana temporal previa.
+- **Actualización:** $t_{\text{actual}} \leftarrow fin_{j^*}$ y $S^* \leftarrow S^* \cup \{j^*\}$.
+
 ### Ejemplo resuelto manualmente
 
 Se consideran seis solicitudes:
@@ -201,6 +207,8 @@ Decisiones de implementación:
 5. **Restricción del negocio:** ninguna programación tiene dos jornadas que se crucen y todas las jornadas elegidas salen de las solicitudes. Se revisa en 50 instancias pequeñas y en 9 instancias del volumen real (una por subregión, de 40 a 120 solicitudes).
 6. **Contraejemplo de la regla actual:** con las solicitudes, en orden de llegada, C1 = (420, 1020, 40), C2 = (420, 600, 30), C3 = (600, 780, 25) y C4 = (780, 1020, 35), la regla por orden de llegada acepta solo C1 (1 jornada, 40 pacientes). La estrategia acepta C2, C3 y C4 (3 jornadas, 90 pacientes), lo mismo que la exhaustiva. La diferencia es de 2 jornadas.
 
+## Parte 4 — Análisis en el informe
+
 ## 3. Medición experimental y análisis de escalabilidad
 
 ### 3.1. Metodología de medición
@@ -276,7 +284,7 @@ La estrategia voraz presenta el mejor equilibrio entre tiempo de ejecución y es
 
 La regla actual también puede procesar las solicitudes, pero su crecimiento cuadrático hace que resulte menos eficiente conforme aumenta el volumen de trabajo. Por lo tanto, los resultados respaldan la selección de la estrategia voraz como alternativa para la programación de jornadas de las unidades móviles.
 
-### 4. Desempeño
+### 4. Evaluación del Desempeño
 
 ### Complejidad teórica
 
