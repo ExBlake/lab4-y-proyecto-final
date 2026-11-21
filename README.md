@@ -605,3 +605,72 @@ Con la estrategia actual, duplicar los datos cuadruplica el tiempo y hace imposi
 3. **Extrapolación validada:** la predicción para 33.000 lotes tuvo un error menor al 8 % frente a la medición real.
 4. **Impacto operativo y energético:** dividir y vencer reduce la vigilancia de los 290 laboratorios de 14 h a ~64 s y el consumo de 1.952 a 2,46 kWh/año, un ahorro del 99,87 % (≈ 1.950 kWh/año) que se amplía si los datos crecen.
 5. **Kadane como cota:** el algoritmo de Kadane, Θ(n), es todavía ~20 veces más rápido que dividir y vencer y da el mismo resultado. Sirvió como oráculo de verificación y muestra que el problema admite incluso una solución lineal.
+
+## Impacto humano, marco normativo y sostenibilidad
+
+### Impacto en las personas y consideraciones éticas
+
+La Plataforma Pulso no solamente procesa registros y organiza jornadas; sus resultados pueden influir en la oportunidad con la que las personas reciben atención médica. Por esta razón, la eficiencia de los algoritmos debe analizarse junto con sus posibles consecuencias sobre los pacientes y las comunidades.
+
+**Disyuntiva ética en la programación de las unidades móviles**
+
+En la operación 3 se seleccionó la estrategia voraz de selección de actividades, cuyo objetivo es maximizar la cantidad de jornadas compatibles. Sin embargo, maximizar el número de jornadas no significa necesariamente maximizar la cantidad de pacientes de alto riesgo atendidos.
+
+Por ejemplo, una jornada corta puede permitir programar varias visitas municipales, mientras que una jornada más extensa podría atender una cantidad considerable de pacientes de alto riesgo. La primera alternativa favorece la cobertura territorial y el número de municipios atendidos; la segunda podría beneficiar a una mayor cantidad de personas que necesitan atención prioritaria.
+
+Esta decisión no debería quedar exclusivamente en manos del algoritmo ni del equipo de desarrollo. La Secretaría de Salud, con participación de profesionales clínicos y responsables de salud pública, debe establecer los criterios de priorización. Entre los aspectos que deberían considerarse se encuentran:
+
+- La gravedad y el nivel de riesgo de los pacientes pendientes.
+- La cantidad de personas que podrían recibir atención en cada jornada.
+- La cobertura de municipios y subregiones.
+- Las condiciones de acceso a los servicios de salud de las comunidades.
+- La disponibilidad de las unidades móviles y los recursos necesarios para realizar las jornadas.
+
+Por lo tanto, la estrategia voraz es correcta para el objetivo matemático definido actualmente: maximizar el número de jornadas compatibles. No obstante, la institución debe revisar periódicamente si ese objetivo representa adecuadamente sus prioridades clínicas y sociales. Si el criterio principal cambia hacia la maximización de pacientes de alto riesgo atendidos, se debería evaluar la programación dinámica de intervalos ponderados, tal como se explica en el análisis de la condición contraria.
+
+**Consecuencias humanas de los errores algorítmicos**
+
+Un error en el procesamiento de información médica puede tener consecuencias que van más allá de un resultado incorrecto en pantalla.
+
+En la consolidación de pacientes, por ejemplo, eliminar equivocadamente un registro o conservar un resultado anterior en lugar del más reciente puede provocar que la institución trabaje con información incompleta. Esto podría afectar la priorización de una persona, retrasar su seguimiento o generar decisiones médicas basadas en datos desactualizados.
+
+En la vigilancia de calidad de los laboratorios, una descalibración que no sea detectada puede alterar la tasa de resultados positivos. Si se generan falsos positivos, algunas personas podrían ser remitidas a valoraciones o pruebas innecesarias, lo que puede producir ansiedad y aumentar la demanda de servicios. Por otra parte, los falsos negativos podrían hacer que pacientes que necesitan seguimiento no sean identificados oportunamente.
+
+Estas situaciones también afectan al sistema de salud, porque el tiempo y los recursos utilizados en procedimientos innecesarios pueden reducir la disponibilidad para atender a otras personas.
+
+Para reducir estos riesgos se recomienda:
+
+- Validar los resultados de los algoritmos con casos de prueba y datos de referencia.
+- Conservar los registros originales y evitar modificaciones destructivas.
+- Permitir la revisión humana de alertas relevantes antes de tomar decisiones clínicas.
+- Registrar las ejecuciones, los resultados y las versiones de los algoritmos utilizados.
+- Revisar periódicamente la calibración de los laboratorios y los resultados anómalos.
+- Contar con mecanismos para identificar, reportar y corregir errores.
+
+En consecuencia, los algoritmos deben funcionar como herramientas de apoyo a las decisiones institucionales, no como sustitutos del criterio de los profesionales responsables de la atención.
+
+### Marco normativo colombiano y protección de la información
+
+La Plataforma Pulso trabaja con información relacionada con la salud de las personas. Por lo tanto, su tratamiento debe considerar las normas colombianas sobre protección de datos personales, manejo de historias clínicas y funcionamiento del sector salud.
+
+**Ley Estatutaria 1581 de 2012 — Protección de datos personales**
+
+Esta ley establece el marco general para el tratamiento de datos personales en Colombia. En su artículo 5 reconoce los datos relativos a la salud como datos sensibles, debido a que su uso indebido puede afectar la intimidad de las personas.
+
+Además, establece principios como finalidad, veracidad o calidad, seguridad y confidencialidad. Esto implica que la información procesada por la plataforma debe utilizarse para propósitos legítimos, mantenerse actualizada y protegerse frente a pérdidas, alteraciones o accesos no autorizados.
+
+En el caso de Plataforma Pulso, estos principios son importantes porque los registros de laboratorio y los indicadores de riesgo pueden influir en la identificación y priorización de pacientes. Por ello, se debe limitar el acceso a la información a las personas autorizadas y evitar que los datos sean utilizados para finalidades diferentes a las permitidas.
+
+**Resolución 1995 de 1999 — Manejo de la historia clínica**
+
+Esta resolución establece disposiciones para la organización, manejo y conservación de las historias clínicas. Reconoce la historia clínica como un documento privado, obligatorio y sometido a reserva.
+
+También establece la importancia de que los registros sean claros, cronológicos y permitan identificar a sus responsables. Estos principios se relacionan con la necesidad de mantener información confiable y reconstruir las actuaciones realizadas durante la atención de un paciente.
+
+Es importante tener en cuenta que la Resolución 1995 fue modificada en lo pertinente por la Resolución 839 de 2017. Esta última establece, entre otros aspectos, un periodo mínimo general de conservación de quince años desde la última atención, distribuido en cinco años en archivo de gestión y diez años en archivo central. También contempla condiciones especiales de conservación. Por tanto, la plataforma no debe establecer por cuenta propia la eliminación de información clínica sin considerar las responsabilidades del custodio y las reglas documentales aplicables.
+
+**Decreto 780 de 2016 — Decreto Único Reglamentario del Sector Salud**
+
+Este decreto compila disposiciones reglamentarias del sector salud y protección social. Constituye un marco de referencia para las entidades y actores que participan en la prestación y organización de los servicios de salud.
+
+Para Plataforma Pulso, su importancia consiste en que el tratamiento de la información y los procesos de vigilancia deben integrarse al marco institucional del sistema de salud. El funcionamiento técnico de los algoritmos no reemplaza las responsabilidades de las entidades y profesionales que intervienen en la atención.
