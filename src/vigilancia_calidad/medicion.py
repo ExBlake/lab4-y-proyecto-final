@@ -18,7 +18,8 @@ Para cada tamaño n se mide:
 Con las mediciones se ajusta la constante c de cada modelo teórico
 (t = c * f(n)), se extrapola al histórico real del cliente (33.000 lotes por
 laboratorio, 290 laboratorios) y se proyecta el consumo a un año (365 corridas).
-Los resultados se guardan en experimentos/vigilancia_calidad/.
+Los resultados se guardan en experimentos/vigilancia_calidad/ y las figuras
+se regeneran en graficas/vigilancia_calidad/ (ver graficas.py).
 
 Uso:
     python src/vigilancia_calidad/medicion.py
@@ -658,6 +659,14 @@ def ejecutar_experimentos(validar: bool = False) -> List[Medicion]:
         guardar_csv(validaciones, os.path.join(DIRECTORIO_EXPERIMENTOS, "validacion_33000.csv"))
     guardar_entorno(os.path.join(DIRECTORIO_EXPERIMENTOS, "entorno.json"), validar)
     print(f"\n[OK] Resultados guardados en {os.path.relpath(DIRECTORIO_EXPERIMENTOS, RAIZ_REPOSITORIO)}")
+
+    # Importación diferida: graficas.py importa este módulo
+    try:
+        from .graficas import generar_graficas
+    except (ImportError, ValueError):
+        from graficas import generar_graficas  # type: ignore
+    for ruta in generar_graficas(mediciones):
+        print(f"[OK] {os.path.relpath(ruta, RAIZ_REPOSITORIO)}")
     return mediciones
 
 
