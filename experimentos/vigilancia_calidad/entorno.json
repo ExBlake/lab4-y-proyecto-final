@@ -1,0 +1,22 @@
+{
+  "fecha": "2026-11-20T20:29:30",
+  "python": "3.12.10",
+  "implementacion": "CPython",
+  "sistema": "Windows-11-10.0.26200-SP0",
+  "procesador": "AMD64 Family 25 Model 33 Stepping 0, AuthenticAMD",
+  "parametros": {
+    "tamanos": [
+      100,
+      500,
+      1000,
+      5000,
+      10000
+    ],
+    "semilla_base": 2026,
+    "potencia_servidor_kw": 0.38,
+    "num_laboratorios": 290,
+    "lotes_historico": 33000,
+    "corridas_por_anio": 365,
+    "validacion_volumen_real": true
+  }
+}
