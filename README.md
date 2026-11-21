@@ -62,6 +62,32 @@ _Salida generada:_
 - `graficas/jornadas_unidades/tiempo_vs_n.png`
 - `graficas/jornadas_unidades/operaciones_vs_n.png`
 
+### 4. Operación 4 — Vigilancia de calidad: pruebas, mediciones y gráficas
+
+```bash
+# Pruebas de correctitud y equivalencia (fuerza bruta = dividir y vencer = Kadane)
+python src/vigilancia_calidad/pruebas.py
+
+# Mediciones (n = 100 ... 10.000), extrapolación, energía y las 3 gráficas (~2,5 min)
+python src/vigilancia_calidad/medicion.py
+
+# Igual que el anterior, y además mide una corrida real con n = 33.000 (~3 min extra)
+python src/vigilancia_calidad/medicion.py --validar-volumen-real
+
+# Solo regenerar las gráficas a partir de los CSV ya guardados (segundos)
+python src/vigilancia_calidad/graficas.py
+```
+
+_Salida generada:_
+
+- `experimentos/vigilancia_calidad/mediciones.csv`: tiempo de reloj, tiempo de CPU, memoria pico y energía por estrategia y tamaño.
+- `experimentos/vigilancia_calidad/extrapolacion.csv`: constante ajustada, R², tiempo y energía para 290 laboratorios × 33.000 lotes y proyección anual.
+- `experimentos/vigilancia_calidad/validacion_33000.csv`: tiempo predicho contra medido con n = 33.000 (solo con `--validar-volumen-real`).
+- `experimentos/vigilancia_calidad/entorno.json`: máquina, versión de Python y parámetros con que se obtuvieron los datos.
+- `graficas/vigilancia_calidad/escalabilidad_tiempo.png`, `consumo_energetico_anual.png` y `ajuste_teorico_complejidad.png`.
+
+Los datos sintéticos se generan dentro del script con [`datos.py`](src/vigilancia_calidad/datos.py) (semilla base `2026`, una semilla distinta por tamaño), así que no hace falta descargar nada. Los tiempos absolutos dependen de la máquina; las razones entre tamaños y entre estrategias son las que deben reproducirse.
+
 ## Parte 1 — Modelado y resolución manual del problema
 
 ### Modelado del problema
@@ -436,3 +462,146 @@ Se utiliza como referencia una potencia de 380 W (0.380 kW). La estimación supo
 5. Finalmente, se identificó que maximizar la cantidad de jornadas no equivale necesariamente a maximizar la cantidad de pacientes de alto riesgo atendidos. Por ello, si las prioridades institucionales cambian y se requiere dar mayor peso a la población atendida o a criterios de equidad territorial, será necesario adaptar el modelo de optimización para incorporar dichos objetivos.
 
 En conjunto, los resultados respaldan la adopción de la estrategia voraz como alternativa a FCFS para la programación de jornadas de las unidades móviles, debido a su garantía de optimalidad respecto al número de jornadas, su eficiencia computacional y su adecuación al volumen de solicitudes del problema.
+
+---
+
+## Operación 4 — Vigilancia de la calidad de los laboratorios: evaluación experimental y consumo energético
+
+Esta sección mide las estrategias implementadas en [`src/vigilancia_calidad/`](src/vigilancia_calidad/) para encontrar, en el histórico de un laboratorio, el tramo de lotes consecutivos con mayor exceso acumulado de positivos (subarreglo de suma máxima):
+
+| Estrategia | Archivo | Complejidad temporal | Espacio auxiliar | Papel |
+| --- | --- | :---: | :---: | --- |
+| Fuerza bruta | [`fuerza_bruta.py`](src/vigilancia_calidad/fuerza_bruta.py) | Θ(n²) | Θ(1) | Proceso actual de la Secretaría (línea base) |
+| Dividir y vencer | [`dividir_vencer.py`](src/vigilancia_calidad/dividir_vencer.py) | Θ(n log n) | Θ(log n) (pila de recursión) | Estrategia propuesta |
+| Kadane | [`dividir_vencer.py`](src/vigilancia_calidad/dividir_vencer.py) | Θ(n) | Θ(1) | Referencia lineal y oráculo de verificación |
+
+Las tres funciones copian la serie de excesos a una lista (`list(datos)`), así que en la práctica las tres reservan Θ(n) referencias adicionales; la diferencia de espacio entre ellas está en la pila de recursión de dividir y vencer (≈ log₂ n marcos).
+
+### Metodología de medición
+
+El script [`medicion.py`](src/vigilancia_calidad/medicion.py) sigue este procedimiento:
+
+1. **Datos.** Para cada tamaño n ∈ {100, 500, 1.000, 5.000, 10.000} genera el histórico sintético de un laboratorio con `generar_lotes_laboratorio` (semilla `2026 + n`). Cada histórico incluye un tramo descalibrado inyectado, como el que se busca detectar. Las tres estrategias reciben **la misma serie**.
+2. **Tiempo de reloj.** `time.perf_counter()`; se reporta la **mediana** de 15 repeticiones para dividir y vencer y Kadane, y de 5 (n ≤ 1.000) o 3 (n ≥ 5.000) para la fuerza bruta, cuya corrida con n = 10.000 tarda unos 16 s. El recolector de basura se desactiva mientras se mide.
+3. **Tiempo de CPU.** `time.process_time()` promediado por repetición. En Windows este reloj avanza en saltos de ~15,6 ms, así que para tamaños pequeños vale 0 o un múltiplo de ese salto; por eso la energía se calcula con el tiempo de reloj, que es además el tiempo en que el servidor permanece ocupado.
+4. **Memoria.** Pico de memoria asignada con `tracemalloc`, en una corrida aparte para no distorsionar el tiempo.
+5. **Energía.** Con la potencia informada por el cliente (380 W = 0,38 kW):
+
+   $$E\,(\text{kWh}) = 0{,}38\ \text{kW} \times \frac{t\,(\text{s})}{3600}$$
+
+   Se supone que el servidor consume su potencia nominal durante todo el tiempo de ejecución; es la aproximación que pide el enunciado, no una medición eléctrica directa.
+6. **Verificación en cada medición.** Antes de aceptar los tiempos de un tamaño, el script comprueba que las tres estrategias reportan el mismo exceso máximo (tolerancia 10⁻⁴). Si alguna difiere, el experimento se detiene con error.
+7. **Ajuste y extrapolación.** Para cada estrategia se ajusta t = c·f(n) por mínimos cuadrados, con f(n) = n², n log₂ n o n, y se extrapola a los **33.000 lotes** del histórico de tres años y a los **290 laboratorios**.
+
+**Entorno de las mediciones registradas** ([`entorno.json`](experimentos/vigilancia_calidad/entorno.json)): CPython 3.12.10, Windows 11, procesador AMD64 (familia 25, Zen 3), un solo hilo.
+
+### Resultados empíricos
+
+**Tiempo de reloj (mediana, en segundos)**
+
+| n (lotes) | Fuerza bruta | Dividir y vencer | Kadane | Fuerza bruta / Dividir y vencer |
+| ---: | ---: | ---: | ---: | ---: |
+| 100 | 0,001516 | 0,000373 | 0,000030 | 4,1× |
+| 500 | 0,039064 | 0,002104 | 0,000161 | 18,6× |
+| 1.000 | 0,158194 | 0,004590 | 0,000275 | 34,5× |
+| 5.000 | 3,912740 | 0,027043 | 0,001384 | 144,7× |
+| 10.000 | 16,068731 | 0,059184 | 0,003142 | 271,5× |
+| 33.000 (medido) | 178,404143 | 0,204593 | 0,010938 | 872,0× |
+
+La ventaja de dividir y vencer no es un factor fijo: **crece con n**, porque la razón entre n² y n log n es n / log n. Con el histórico real de un laboratorio, la fuerza bruta tarda casi tres minutos y dividir y vencer, dos décimas de segundo.
+
+**Memoria pico (KiB) y energía de una ejecución (kWh)**
+
+| n (lotes) | Memoria FB | Memoria DyV | Memoria Kadane | Energía FB | Energía DyV | Energía Kadane |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 100 | 1,0 | 0,9 | 0,9 | 1,60·10⁻⁷ | 3,93·10⁻⁸ | 3,12·10⁻⁹ |
+| 500 | 4,2 | 5,1 | 4,1 | 4,12·10⁻⁶ | 2,22·10⁻⁷ | 1,70·10⁻⁸ |
+| 1.000 | 8,2 | 9,2 | 8,1 | 1,67·10⁻⁵ | 4,84·10⁻⁷ | 2,90·10⁻⁸ |
+| 5.000 | 39,4 | 40,8 | 39,3 | 4,13·10⁻⁴ | 2,85·10⁻⁶ | 1,46·10⁻⁷ |
+| 10.000 | 78,5 | 79,9 | 78,4 | 1,70·10⁻³ | 6,25·10⁻⁶ | 3,32·10⁻⁷ |
+
+La memoria crece linealmente en las tres (≈ 8 bytes por lote: la copia de la lista de referencias) y es prácticamente igual entre ellas; dividir y vencer usa ~1,5 KiB más por los marcos de recursión. Con 33.000 lotes son ≈ 260 KiB por laboratorio, así que **la memoria no es una restricción**: la diferencia entre estrategias está en el tiempo y, por tanto, en la energía.
+
+En todos los tamaños las tres estrategias devolvieron el **mismo tramo y el mismo exceso** (por ejemplo, con n = 10.000 el tramo [3890, 4893] con exceso 300,7596), lo que cumple la restricción del negocio de reportar el tramo de mayor exceso acumulado ([`mediciones.csv`](experimentos/vigilancia_calidad/mediciones.csv)).
+
+![Escalabilidad del tiempo](graficas/vigilancia_calidad/escalabilidad_tiempo.png)
+
+*Izquierda: en escala lineal, la fuerza bruta dibuja una parábola mientras dividir y vencer y Kadane quedan pegadas al eje. Derecha: en log-log las pendientes muestran el orden de crecimiento (≈ 2 para la fuerza bruta, ≈ 1 para las otras dos); las líneas punteadas son la extrapolación y los rombos, la medición real con 33.000 lotes.*
+
+### Contraste entre lo medido y la complejidad teórica
+
+**Factor de crecimiento del tiempo al aumentar n**
+
+| Cambio de n | Fuerza bruta medido | Teórico n² | Dividir y vencer medido | Teórico n log n | Kadane medido | Teórico n |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 500 → 1.000 (×2) | 4,05× | 4,00× | 2,18× | 2,22× | 1,70× | 2,00× |
+| 1.000 → 5.000 (×5) | 24,73× | 25,00× | 5,89× | 6,16× | 5,03× | 5,00× |
+| 5.000 → 10.000 (×2) | 4,11× | 4,00× | 2,19× | 2,16× | 2,27× | 2,00× |
+
+- **Fuerza bruta.** Al duplicar n el tiempo se multiplica por ~4 y al quintuplicarlo por ~25: el comportamiento cuadrático Θ(n²) se cumple casi exactamente, porque el algoritmo hace siempre n(n+1)/2 sumas, sin importar los datos.
+- **Dividir y vencer.** Al duplicar n el tiempo crece un poco más del doble (2,18×–2,19×), que es la firma de n log n: el factor log₂(2n)/log₂ n añade ~8 % sobre el comportamiento lineal. Coincide con la recurrencia T(n) = 2T(n/2) + Θ(n) y el caso 2 del teorema maestro.
+- **Kadane.** Crece en proporción a n. Sus tiempos están en décimas de milisegundo, donde el ruido del sistema operativo pesa más; por eso su ajuste es el menos preciso (R² = 0,9958) y sus factores oscilan alrededor de 2.
+
+**Calidad del ajuste t = c·f(n)** ([`extrapolacion.csv`](experimentos/vigilancia_calidad/extrapolacion.csv))
+
+| Estrategia | Modelo f(n) | Constante c (s) | R² |
+| --- | :---: | ---: | ---: |
+| Fuerza bruta | n² | 1,604·10⁻⁷ | 0,99995 |
+| Dividir y vencer | n log₂ n | 4,446·10⁻⁷ | 0,99995 |
+| Kadane | n | 3,065·10⁻⁷ | 0,99579 |
+
+La constante de dividir y vencer es ~2,8 veces la de la fuerza bruta: cada paso de la recursión cuesta más (llamadas a función, tuplas, `round`) que una suma del doble ciclo. Por eso, con n = 100 la ventaja es solo de 4×. La constante se paga una vez por elemento y el factor n que se ahorra crece sin límite, así que **la ventaja asintótica domina desde unos pocos cientos de lotes**.
+
+![Ajuste teórico de la complejidad](graficas/vigilancia_calidad/ajuste_teorico_complejidad.png)
+
+*El panel inferior derecho divide cada tiempo medido entre su predicción teórica: si el modelo es el correcto, la razón se queda cerca de 1 al crecer n. Las tres series lo cumplen; la desviación de dividir y vencer en n = 100 (1,26) se debe al costo fijo de las llamadas, que pesa más en entradas pequeñas.*
+
+### Validación de la extrapolación con el volumen real
+
+Para comprobar que la extrapolación no es solo un cálculo, se midió también una corrida real con el histórico completo de un laboratorio (n = 33.000, opción `--validar-volumen-real`):
+
+| Estrategia | Tiempo predicho (s) | Tiempo medido (s) | Error relativo |
+| --- | ---: | ---: | ---: |
+| Fuerza bruta | 174,72 | 178,40 | 2,1 % |
+| Dividir y vencer | 0,2202 | 0,2046 | −7,6 % |
+| Kadane | 0,0101 | 0,0109 | 7,5 % |
+
+Los modelos ajustados con n ≤ 10.000 predicen el volumen real con un error menor al 8 %. Con 33.000 lotes las tres estrategias también coincidieron en el exceso máximo reportado ([`validacion_33000.csv`](experimentos/vigilancia_calidad/validacion_33000.csv)).
+
+### Extrapolación a los 290 laboratorios y consumo energético anual
+
+Una corrida completa analiza los 290 laboratorios uno tras otro en un solo hilo (los laboratorios son independientes). Para la proyección anual se supone que la vigilancia se recalcula **una vez al día** (365 corridas), lo que permite detectar un equipo descalibrado al día siguiente y no semanas después.
+
+| Estrategia | 1 laboratorio (33.000 lotes) | 290 laboratorios | kWh por corrida | kWh por año (365 corridas) | Ahorro anual frente al actual |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Fuerza bruta (actual) | 174,7 s | **14,07 h** | 5,348 | **1.952,16** | — |
+| Dividir y vencer (propuesta) | 0,22 s | **63,9 s** | 0,00674 | **2,46** | **1.949,70 kWh (99,87 %)** |
+| Kadane (referencia) | 0,010 s | 2,9 s | 0,00031 | 0,11 | 1.952,05 kWh (99,99 %) |
+
+![Consumo energético anual](graficas/vigilancia_calidad/consumo_energetico_anual.png)
+
+**Lectura de los resultados:**
+
+- Con dividir y vencer, la vigilancia de los 290 laboratorios pasa de **14 horas a poco más de un minuto** de servidor. Eso permite correrla todos los días, incluso dentro de la ventana nocturna de 4 h sin competir con las operaciones 1 y 2.
+- El ahorro es de **≈ 1.950 kWh al año** (**5,34 kWh por corrida**). Si la Secretaría corriera la vigilancia con menos frecuencia, el ahorro anual se reduce en la misma proporción, pero el ahorro por corrida se mantiene.
+- **Sobre el "tarda varios días" del enunciado.** Nuestra estimación de 14 h para el proceso actual mide solo el cómputo del algoritmo, en Python, en un procesador de escritorio reciente. La cifra del cliente incluye además la lectura del histórico, el uso de hojas de cálculo y un servidor probablemente más lento. Por eso los 1.952 kWh/año son una **cota inferior** del consumo actual, y el ahorro real sería mayor. Como dividir y vencer reduce el número de operaciones y no depende del hardware, el porcentaje de ahorro (≈ 99,9 %) se mantiene en cualquier máquina.
+
+### Sensibilidad al crecimiento (tamizaje de hipertensión)
+
+Si los resultados diarios se duplican, cada laboratorio acumula del orden de 66.000 lotes en el mismo histórico de tres años. Aplicando los modelos ajustados:
+
+| Estrategia | Factor de crecimiento | 290 laboratorios | kWh por año |
+| --- | ---: | ---: | ---: |
+| Fuerza bruta | ×4,00 (n²) | ≈ 56,3 h por corrida: **ya no cabe en un día** | ≈ 7.809 |
+| Dividir y vencer | ×2,13 (n log n) | ≈ 136 s por corrida | ≈ 5,25 |
+| Kadane | ×2,00 (n) | ≈ 6 s por corrida | ≈ 0,23 |
+
+Con la estrategia actual, duplicar los datos cuadruplica el tiempo y hace imposible la vigilancia diaria. Con dividir y vencer, el costo apenas se duplica y sigue siendo de minutos.
+
+### Conclusión de la evaluación experimental
+
+1. **Correctitud:** las tres estrategias reportan el mismo tramo y el mismo exceso en todos los tamaños medidos, y el mismo exceso máximo con el volumen real de 33.000 lotes. La estrategia rápida no sacrifica exactitud.
+2. **Complejidad confirmada:** los tiempos siguen Θ(n²) para la fuerza bruta y Θ(n log n) para dividir y vencer, con R² ≈ 0,9999 y factores de duplicación de 4,05–4,11× frente a 2,18–2,19×.
+3. **Extrapolación validada:** la predicción para 33.000 lotes tuvo un error menor al 8 % frente a la medición real.
+4. **Impacto operativo y energético:** dividir y vencer reduce la vigilancia de los 290 laboratorios de 14 h a ~64 s y el consumo de 1.952 a 2,46 kWh/año, un ahorro del 99,87 % (≈ 1.950 kWh/año) que se amplía si los datos crecen.
+5. **Kadane como cota:** el algoritmo de Kadane, Θ(n), es todavía ~20 veces más rápido que dividir y vencer y da el mismo resultado. Sirvió como oráculo de verificación y muestra que el problema admite incluso una solución lineal.
