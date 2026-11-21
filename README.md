@@ -674,3 +674,100 @@ Es importante tener en cuenta que la Resolución 1995 fue modificada en lo perti
 Este decreto compila disposiciones reglamentarias del sector salud y protección social. Constituye un marco de referencia para las entidades y actores que participan en la prestación y organización de los servicios de salud.
 
 Para Plataforma Pulso, su importancia consiste en que el tratamiento de la información y los procesos de vigilancia deben integrarse al marco institucional del sistema de salud. El funcionamiento técnico de los algoritmos no reemplaza las responsabilidades de las entidades y profesionales que intervienen en la atención.
+
+**Aplicación de las normas en el diseño técnico**
+
+A partir de estas disposiciones, se proponen las siguientes medidas para proteger la información y permitir la trazabilidad de los resultados:
+
+1. **Conservación de los datos originales:** los registros recibidos de los laboratorios deben mantenerse sin modificaciones. Los algoritmos deben trabajar sobre estructuras de procesamiento o copias derivadas, sin sobrescribir la información de origen.
+2. **Identificación y trazabilidad:** cada registro debe conservar identificadores que permitan relacionarlo con su paciente, laboratorio, lote y fecha de origen, de acuerdo con los permisos y las finalidades autorizadas.
+3. **Registro de ejecuciones:** se recomienda almacenar la fecha de procesamiento, la versión del algoritmo, los parámetros utilizados y los resultados obtenidos.
+4. **Control de acceso:** la información debe estar disponible únicamente para los usuarios autorizados según sus responsabilidades.
+5. **Protección de la integridad:** se pueden incorporar mecanismos como hashes, copias de seguridad y registros de auditoría para detectar modificaciones y facilitar la recuperación de información.
+
+Estas medidas constituyen recomendaciones de diseño. Su implementación debe verificarse en el sistema antes de afirmar que la plataforma ya cumple técnicamente con cada una de ellas. Además, la plataforma debe coordinar sus responsabilidades con la entidad que tenga a cargo la custodia de las historias clínicas, cuando corresponda.
+
+### Sostenibilidad y crecimiento futuro
+
+El escenario futuro plantea la incorporación del tamizaje de hipertensión, lo que duplicaría el volumen de resultados diarios y llevaría el histórico aproximado de cada laboratorio de 33.000 a 66.000 lotes.
+
+Este crecimiento permite evaluar si las estrategias seleccionadas pueden mantener un rendimiento adecuado cuando aumente la cantidad de información.
+
+**Impacto en la operación 3: programación de jornadas**
+
+La operación 3 trabaja con solicitudes de jornadas municipales. Su estrategia voraz tiene una complejidad temporal de Θ(n log n), mientras que la regla actual presenta un comportamiento Θ(n²) en el peor caso.
+
+Las mediciones muestran que la estrategia voraz procesa 5.000 solicitudes en 1,7333 ms, frente a 9,6087 ms de la regla actual. Esto evidencia que la estrategia propuesta ofrece un mejor comportamiento cuando aumenta la cantidad de solicitudes.
+
+Aunque el escenario de hipertensión se enfoca principalmente en el crecimiento de los registros clínicos, un aumento de la demanda de atención también podría generar más solicitudes de jornadas. En ese caso, la estrategia voraz ofrece una alternativa escalable frente al procedimiento actual. Sin embargo, su eficiencia no resuelve por sí sola la disponibilidad limitada de unidades móviles ni las decisiones de priorización clínica.
+
+**Impacto en la operación 4: vigilancia de calidad de los laboratorios**
+
+La operación 4 presenta un crecimiento más significativo en el costo computacional, debido a que las estrategias comparadas tienen complejidades diferentes:
+
+- Fuerza bruta: Θ(n²).
+- Dividir y vencer: Θ(n log n).
+- Kadane: Θ(n).
+
+Al duplicar el número de lotes de 33.000 a 66.000, el modelo teórico permite estimar los siguientes factores de crecimiento:
+
+| Estrategia | Complejidad | Factor aproximado |
+|---|---|---:|
+| Fuerza bruta | Θ(n²) | 4,00× |
+| Dividir y vencer | Θ(n log n) | 2,13× |
+| Kadane | Θ(n) | 2,00× |
+
+De acuerdo con la extrapolación experimental del README, los resultados para los 290 laboratorios serían:
+
+| Estrategia | Tiempo para 290 laboratorios | Energía anual estimada |
+|---|---:|---:|
+| Fuerza bruta | 56,3 horas por corrida | 7.809 kWh |
+| Dividir y vencer | 136 segundos por corrida | 5,25 kWh |
+| Kadane | 6 segundos por corrida | 0,23 kWh |
+
+La fuerza bruta dejaría de ser adecuada para una vigilancia diaria, ya que su procesamiento tardaría más de un día. En cambio, dividir y vencer mantendría un tiempo cercano a dos minutos para los 290 laboratorios, por lo que seguiría siendo viable dentro de la operación diaria.
+
+Estos valores son proyecciones obtenidas a partir de los modelos ajustados con las mediciones disponibles. No corresponden a una nueva medición directa de 66.000 lotes.
+
+**Impacto ambiental y eficiencia energética**
+
+La reducción del tiempo de procesamiento también disminuye el consumo energético estimado. En el escenario original, dividir y vencer reduce el consumo anual proyectado de 1.952,16 kWh a 2,46 kWh frente a fuerza bruta, lo que representa un ahorro aproximado del 99,87 %.
+
+En el escenario de crecimiento, la diferencia se mantiene: la fuerza bruta alcanzaría aproximadamente 7.809 kWh anuales, mientras que dividir y vencer requeriría alrededor de 5,25 kWh.
+
+Estas estimaciones utilizan la potencia de referencia de 380 W y suponen que el servidor consume esa potencia durante todo el tiempo de ejecución. Por ello, representan una aproximación del consumo asociado al procesamiento y no una medición eléctrica directa.
+
+En la operación 3, el ahorro energético calculado es mucho menor debido a que los tiempos de ejecución son de milisegundos. Su principal beneficio no es ambiental, sino operativo y social: permite aprovechar mejor los horarios disponibles y programar una mayor cantidad de jornadas compatibles.
+
+En conjunto, los resultados muestran que seleccionar algoritmos eficientes contribuye a reducir el tiempo de procesamiento y el consumo energético, especialmente en operaciones que manejan grandes volúmenes históricos de información.
+
+### Conclusiones y recomendaciones
+
+El desarrollo de las operaciones 3 y 4 permitió comprobar que la selección de un algoritmo debe responder al objetivo del problema y considerar tanto su correctitud como su eficiencia.
+
+En la operación 3, la estrategia voraz de selección de actividades demostró ser una alternativa adecuada para maximizar la cantidad de jornadas compatibles. Las pruebas realizadas mostraron que obtiene el mismo número de jornadas que la solución exhaustiva en las instancias evaluadas. Además, presentó mejores tiempos que la regla actual por orden de llegada, alcanzando una reducción aproximada del 82 % para 5.000 solicitudes. Sin embargo, esta garantía de optimalidad se limita al número de jornadas y no implica que siempre se maximice la cantidad de pacientes atendidos.
+
+En la operación 4, la comparación entre fuerza bruta, dividir y vencer y Kadane permitió observar cómo la complejidad algorítmica influye directamente en el tiempo de procesamiento. Las tres estrategias obtuvieron el mismo exceso máximo en las pruebas realizadas, pero sus tiempos fueron muy diferentes. Para 33.000 lotes, fuerza bruta tardó 178,40 segundos, mientras que dividir y vencer tardó 0,2046 segundos. Esto demuestra que es posible reducir considerablemente el costo computacional sin sacrificar la exactitud del resultado.
+
+Desde el punto de vista de la sostenibilidad, dividir y vencer representa una mejora importante para la vigilancia de calidad. La proyección para 290 laboratorios estima una reducción del tiempo de procesamiento de aproximadamente 14 horas a 63,9 segundos por corrida y un ahorro energético anual cercano al 99,87 % frente a fuerza bruta. Incluso al duplicar el volumen de datos, la estrategia mantiene un tiempo de procesamiento viable.
+
+También se identificó que la eficiencia técnica debe estar acompañada de criterios éticos y de protección de la información. Una decisión algorítmica incorrecta puede afectar la oportunidad de atención de los pacientes, generar valoraciones innecesarias o alterar la priorización de las comunidades. Por esta razón, los resultados deben poder verificarse y las decisiones clínicas deben permanecer bajo responsabilidad de los profesionales y autoridades competentes.
+
+A partir de los resultados obtenidos, se plantean las siguientes recomendaciones:
+
+1. Adoptar la estrategia voraz para la programación de jornadas mientras el objetivo institucional sea maximizar la cantidad de jornadas compatibles.
+2. Evaluar la programación dinámica de intervalos ponderados si la prioridad cambia hacia la cantidad de pacientes de alto riesgo atendidos.
+3. Utilizar dividir y vencer para la vigilancia de calidad frente a la fuerza bruta, debido a su menor tiempo de ejecución y su comportamiento favorable ante el crecimiento de los datos.
+4. Mantener pruebas de equivalencia y validación con diferentes tamaños de entrada para detectar posibles errores en los resultados.
+5. Proteger los registros originales y establecer mecanismos de trazabilidad, auditoría y control de acceso.
+6. Revisar periódicamente los criterios clínicos y territoriales utilizados para priorizar pacientes y asignar jornadas.
+7. Repetir las mediciones de rendimiento y consumo energético cuando se incorpore el tamizaje de hipertensión, para contrastar las proyecciones con el comportamiento real.
+
+Finalmente, el proyecto muestra que el análisis de algoritmos no se limita a encontrar una solución que funcione. También permite evaluar cuánto cuesta ejecutarla, qué tan bien responde al crecimiento de los datos y qué consecuencias puede tener sobre las personas. En una plataforma relacionada con la salud pública, estos aspectos deben considerarse conjuntamente para construir soluciones eficientes, confiables y responsables.
+
+## Referencias normativas
+
+- Colombia. Congreso de la República. (2012). **Ley Estatutaria 1581 de 2012**, por la cual se dictan disposiciones generales para la protección de datos personales. https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=49981
+- Colombia. Ministerio de Salud. (1999). **Resolución 1995 de 1999**, por la cual se establecen normas para el manejo de la historia clínica. https://www.minsalud.gov.co/normatividad_nuevo/resoluci%C3%93n%201995%20de%201999.pdf
+- Colombia. Ministerio de Salud y Protección Social y Ministerio de Cultura. (2017). **Resolución 839 de 2017**, por la cual se modifica la Resolución 1995 de 1999 y se dictan otras disposiciones. https://www.minsalud.gov.co/sites/rid/Lists/BibliotecaDigital/RIDE/DE/DIJ/resolucion-839-de-2017.pdf
+- Colombia. Presidencia de la República. (2016). **Decreto 780 de 2016**, Decreto Único Reglamentario del Sector Salud y Protección Social. https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=77813
