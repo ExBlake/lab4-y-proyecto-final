@@ -95,7 +95,9 @@ Este informe se concentra en la formalización matemática, diseño algorítmico
 
 El cálculo del costo eléctrico en sistemas de cómputo continuo se rige por la relación física entre potencia demandada y tiempo de ejecución:
 
-$$\text{Energía (kWh)} = \text{Potencia (kW)} \times \text{Tiempo (horas)} = 0{,}380\,\text{kW} \times \frac{t\,(\text{s})}{3600}$$
+$$
+\text{Energía (kWh)} = \text{Potencia (kW)} \times \text{Tiempo (horas)} = 0{,}380\,\text{kW} \times \frac{t\,(\text{s})}{3600}
+$$
 
 La línea base operativa registrada históricamente en la Secretaría evidencia el agotamiento de la infraestructura:
 
@@ -116,7 +118,9 @@ La línea base operativa registrada históricamente en la Secretaría evidencia 
 #### Definición formal de entradas
 Sea $S = \{s_1, s_2, \ldots, s_n\}$ el conjunto de solicitudes de jornadas de valoración médica remitidas por los municipios de una subregión durante el mes. Cada solicitud individual $s_i$ se modela formalmente como una 3-tupla:
 
-$$s_i = (\text{inicio}_i,\ \text{fin}_i,\ \text{pacientes}_i) \in \mathbb{Z}_{\ge 0} \times \mathbb{Z}_{>0} \times \mathbb{Z}_{\ge 0}$$
+$$
+s_i = (\text{inicio}_i,\ \text{fin}_i,\ \text{pacientes}_i) \in \mathbb{Z}_{\ge 0} \times \mathbb{Z}_{>0} \times \mathbb{Z}_{\ge 0}
+$$
 
 donde:
 - $\text{inicio}_i$: Minuto del mes en que inicia la jornada (minuto 0 = día 1 a las 00:00 h).
@@ -126,13 +130,19 @@ donde:
 #### Definición formal de salidas
 Un subconjunto compatible $S^* \subseteq S$ que maximiza la cantidad total de jornadas agendadas:
 
-$$S^* = \arg\max_{A \subseteq S,\ \text{compatible}} |A|$$
+$$
+S^* = \arg\max_{A \subseteq S,\ \text{compatible}} |A|
+$$
 
 entregado estrictamente ordenado por hora cronológica de inicio: $\text{inicio}_j \le \text{inicio}_{j+1}$ para todo $j \in \{1, \ldots, |S^*|-1\}$.
 
 #### Restricciones de negocio
 - **R3.1 — Exclusividad física:** La unidad móvil no puede atender dos jornadas simultáneas ni solapar desplazamientos. Dos solicitudes $s_i, s_j$ se cruzan si:
-  $$\max(\text{inicio}_i, \text{inicio}_j) < \min(\text{fin}_i, \text{fin}_j)$$
+  
+$$
+\max(\text{inicio}_i, \text{inicio}_j) < \min(\text{fin}_i, \text{fin}_j)
+$$
+
 - **R3.2 — Indivisibilidad horaria:** Una jornada aceptada debe ejecutarse íntegramente en $[\text{inicio}_i, \text{fin}_i)$; no se admiten fraccionamientos ni recortes de horario.
 - **R3.3 — Intervalos semiabiertos:** $[\text{inicio}, \text{fin})$. Si una jornada termina exactamente en el minuto $M$ y la siguiente inicia en el minuto $M$, **no existe cruce**, dado que el traslado vehicular está incorporado en $\text{fin}$.
 - **R3.4 — Independencia subregional:** Las 9 subregiones cuentan con vehículos disyuntos; sus 9 problemas de agendamiento son matemáticamente independientes.
@@ -149,16 +159,22 @@ entregado estrictamente ordenado por hora cronológica de inicio: $\text{inicio}
 #### Modelado analítico y entradas formales
 Cada laboratorio clínico remite sus registros agrupados en lotes (~30 lotes diarios). Para cada lote $i$, se define el **exceso de positividad** $x_i$ como:
 
-$$x_i = \text{tasa\_observada}_i - \text{tasa\_esperada}_i \in [-1{,}0,\ 1{,}0] \subset \mathbb{R}$$
+$$
+x_i = \text{tasa\_observada}_i - \text{tasa\_esperada}_i \in [-1{,}0,\ 1{,}0] \subset \mathbb{R}
+$$
 
 Bajo calibración óptima, $x_i$ fluctúa alrededor de cero. Si un analizador sufre descalibración fotométrica, genera un incremento positivo sostenido en la tasa observada. La entrada se define como la serie cronológica inmutable de $n$ lotes históricos ($n \approx 33.000$ en 3 años):
 
-$$X = \langle x_0, x_1, \ldots, x_{n-1} \rangle, \quad x_i \in \mathbb{R}$$
+$$
+X = \langle x_0, x_1, \ldots, x_{n-1} \rangle, \quad x_i \in \mathbb{R}
+$$
 
 #### Definición formal de salidas
 El par de índices $(l^*, r^*)$ que delimita el tramo continuo con mayor exceso acumulado (Problema del Subarreglo de Suma Máxima):
 
-$$(l^*, r^*) = \arg\max_{0 \le l \le r < n} \sum_{k=l}^{r} x_k, \quad \text{con valor acumulado } M^* = \sum_{k=l^*}^{r^*} x_k$$
+$$
+(l^*, r^*) = \arg\max_{0 \le l \le r < n} \sum_{k=l}^{r} x_k, \quad \text{con valor acumulado } M^* = \sum_{k=l^*}^{r^*} x_k
+$$
 
 #### Restricciones de negocio
 - **R4.1 — Inmutabilidad y trazabilidad legal:** La información histórica no puede ser modificada en memoria durante el procesamiento.
@@ -373,16 +389,25 @@ El tiempo de cómputo $T(n)$ de la función recursiva `TramoMaxDivVencer` se des
 
 La recurrencia global que modela el algoritmo es:
 
-$$T(n) = 2T\left(\frac{n}{2}\right) + \Theta(n), \quad \text{con condición base } T(1) = \Theta(1)$$
+$$
+T(n) = 2T\left(\frac{n}{2}\right) + \Theta(n), \quad \text{con condición base } T(1) = \Theta(1)
+$$
 
 **Aplicación formal del Teorema Maestro ($T(n) = aT(n/b) + f(n)$):**
 1. **Identificación de parámetros:** $a = 2$, $b = 2$, $f(n) = \Theta(n)$.
 2. **Cálculo de la función frontera:**
-   $$n^{\log_b a} = n^{\log_2 2} = n^1 = \Theta(n)$$
+   
+$$
+n^{\log_b a} = n^{\log_2 2} = n^1 = \Theta(n)
+$$
+
 3. **Comparación asintótica:**
    Dado que $f(n) = \Theta(n)$ y $n^{\log_b a} = \Theta(n)$, se tiene que $f(n) = \Theta(n^{\log_b a})$, cumpliéndose con exactitud el **Caso 2 del Teorema Maestro**.
 4. **Conclusión asintótica formal:**
-   $$\boxed{T(n) = \Theta(n^{\log_b a} \log n) = \Theta(n \log n)}$$
+   
+$$
+\boxed{T(n) = \Theta(n^{\log_b a} \log n) = \Theta(n \log n)}
+$$
 
 *Justificación de exclusión de los otros casos:*
 - No aplica el Caso 1 porque $f(n)$ no es polinomialmente menor que $n^{\log_b a}$ ($f(n) \neq O(n^{1-\epsilon})$).
@@ -504,7 +529,9 @@ Se formaliza una instancia crítica donde el orden de radicación del coordinado
 - **Estrategia Voraz (EFT):** Ordena por fin: $C_2(180), C_3(300), C_4(420), C_1(480)$. Acepta $C_2$ (fin 180), acepta $C_3$ ($180 \ge 180$), acepta $C_4$ ($300 \ge 300$), descarta $C_1$ por cruce ($60 < 420$).
   - *Resultado Voraz:* **3 jornadas programadas**, **90 pacientes atendidos**.
 
-$$\mathbf{\text{Ganancia Voraz: } +2\text{ jornadas (+200\% de cobertura)}} \quad\text{y}\quad \mathbf{+50\text{ pacientes (+125\% de atención)}}$$
+$$
+\mathbf{\text{Ganancia Voraz: } +2\text{ jornadas (+200\% de cobertura)}} \quad\text{y}\quad \mathbf{+50\text{ pacientes (+125\% de atención)}}
+$$
 
 *Causa del fallo de FCFS:* Miopía burocrática: prioriza la hora de llegada de la solicitud sin evaluar el costo de oportunidad del tiempo bloqueado por actividades desproporcionadamente extensas.
 
@@ -520,7 +547,9 @@ Bajo pesos arbitrarios, ninguna heurística voraz simple (menor fin, menor inici
 #### Formulación formal de Programación Dinámica
 Ordenando las jornadas por hora de fin ascendente y definiendo $p(j)$ como el mayor índice disyunto ($fin_{p(j)} \le inicio_j$):
 
-$$\text{OPT}(j) = \max\Big(w_j + \text{OPT}(p(j)),\ \text{OPT}(j-1)\Big), \quad \text{con } \text{OPT}(0) = 0$$
+$$
+\text{OPT}(j) = \max\Big(w_j + \text{OPT}(p(j)),\ \text{OPT}(j-1)\Big), \quad \text{con } \text{OPT}(0) = 0
+$$
 
 - $w_j + \text{OPT}(p(j))$: **Opción de inclusión:** Aceptar la solicitud $j$, cobrar sus $w_j$ pacientes y sumar la solución óptima del subproblema disyunto previo $\text{OPT}(p(j))$.
 - $\text{OPT}(j-1)$: **Opción de exclusión:** Omitir la solicitud $j$, heredando el óptimo alcanzado hasta la solicitud $j-1$.

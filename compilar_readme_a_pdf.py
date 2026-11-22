@@ -1,8 +1,9 @@
 """Conversor oficial de README.md a PDF para la Plataforma Pulso.
 
 Lee el archivo README.md, lo convierte a HTML semántico con diseño
-editorial profesional y compila a PDF vía Google Chrome Headless,
-garantizando una extensión estricta entre 10 y 15 páginas sin incluir anexos.
+editorial profesional y motor de tipografía matemática (Math Mode),
+y compila a PDF vía Google Chrome Headless garantizando una extensión
+estricta entre 10 y 15 páginas sin incluir anexos.
 """
 
 import base64
@@ -67,6 +68,120 @@ def agrupar_imagenes(md: str) -> str:
     md = re.sub(bloque_img, repl_single, md)
     return md
 
+def latex_a_math_html(expr: str, is_display: bool = False) -> str:
+    """Convierte sintaxis matemática LaTeX a HTML semántico en Math Mode profesional."""
+    s = expr.strip()
+
+    # 1. Proteger \text{...} con marcadores sin guiones bajos
+    text_blocks = []
+    def save_text(m):
+        idx = len(text_blocks)
+        clean = m.group(1).replace(r'\_', '_')
+        text_blocks.append(f'<span class="math-text">{clean}</span>')
+        return f"QQTEXT{idx}QQ"
+
+    s = re.sub(r'\\text\{([^}]+)\}', save_text, s)
+    s = re.sub(r'\\mathbf\{([^}]+)\}', r'<strong>\1</strong>', s)
+    s = re.sub(r'\\boxed\{([^}]+)\}', r'<span class="math-boxed">\1</span>', s)
+
+    # Fracciones
+    s = re.sub(
+        r'\\frac\{([^}]+)\}\{([^}]+)\}',
+        r'<span class="math-frac"><span class="frac-num">\1</span><span class="frac-den">\2</span></span>',
+        s
+    )
+
+    # Sumatorias con límites
+    s = re.sub(
+        r'\\sum_\{([^}]+)\}\^\{?([^}\s]+)\}?',
+        r'<span class="math-sum"><span class="sum-limits"><span class="sup">\2</span><span class="sum-sym">∑</span><span class="sub">\1</span></span></span>',
+        s
+    )
+    s = re.sub(
+        r'\\sum_\{([^}]+)\}',
+        r'<span class="math-sum"><span class="sum-limits"><span class="sum-sym">∑</span><span class="sub">\1</span></span></span>',
+        s
+    )
+
+    # Reemplazos ordenados por especificidad
+    simbolos_ordenados = [
+        (r'\\ldots', '…'),
+        (r'\\cdots', '⋯'),
+        (r'\\left\(', '<span class="math-paren">(</span>'),
+        (r'\\right\)', '<span class="math-paren">)</span>'),
+        (r'\\Big\(', '<span class="math-paren-big">(</span>'),
+        (r'\\Big\)', '<span class="math-paren-big">)</span>'),
+        (r'\\arg\\max', '<span class="math-op">arg&nbsp;max</span>'),
+        (r'\\mathbb\{Z\}_\{\\ge 0\}', 'ℤ<sub>≥0</sub>'),
+        (r'\\mathbb\{Z\}_\{>0\}', 'ℤ<sub>&gt;0</sub>'),
+        (r'\\mathbb\{Z\}', 'ℤ'),
+        (r'\\mathbb\{R\}', 'ℝ'),
+        (r'\\mathcal\{P\}', '𝒫'),
+        (r'\\subseteq', '⊆'),
+        (r'\\setminus', ' \\ '),
+        (r'\\implies', ' ⟹ '),
+        (r'\\approx', ' ≈ '),
+        (r'\\times', ' × '),
+        (r'\\Theta', '<span class="sym-greek">Θ</span>'),
+        (r'\\Omega', '<span class="sym-greek">Ω</span>'),
+        (r'\\subset', '⊂'),
+        (r'\\lfloor', '⌊'),
+        (r'\\rfloor', '⌋'),
+        (r'\\lceil', '⌈'),
+        (r'\\rceil', '⌉'),
+        (r'\\langle', '⟨'),
+        (r'\\rangle', '⟩'),
+        (r'\\forall', '∀'),
+        (r'\\exists', '∃'),
+        (r'\\infty', '∞'),
+        (r'\\notin', '∉'),
+        (r'\\cdot', ' · '),
+        (r'\\neq', ' ≠ '),
+        (r'\\cup', ' ∪ '),
+        (r'\\cap', ' ∩ '),
+        (r'\\quad', '&emsp;'),
+        (r'\\qquad', '&emsp;&emsp;'),
+        (r'\\log', '<span class="math-op">log</span>'),
+        (r'\\max', '<span class="math-op">max</span>'),
+        (r'\\min', '<span class="math-op">min</span>'),
+        (r'\\le', ' ≤ '),
+        (r'\\ge', ' ≥ '),
+        (r'\\in', ' ∈ '),
+        (r'\\land', ' ∧ '),
+        (r'\\,', ' '),
+        (r'\\;', ' '),
+        (r'\\_', '_'),
+        (r'\\%', '%'),
+        (r'\{,\}', ','),
+        (r'\\ ', ' '),
+    ]
+
+    for pat, rep in simbolos_ordenados:
+        s = re.sub(pat, rep, s)
+
+    # Subíndices y superíndices
+    s = re.sub(r'_\{([^}]+)\}', r'<sub>\1</sub>', s)
+    s = re.sub(r'\^\{([^}]+)\}', r'<sup>\1</sup>', s)
+    s = re.sub(r'_([a-zA-Z0-9*])', r'<sub>\1</sub>', s)
+    s = re.sub(r'\^([a-zA-Z0-9*+-])', r'<sup>\1</sup>', s)
+
+    # Restaurar bloques de texto protegidos
+    for idx, block in enumerate(text_blocks):
+        s = s.replace(f"QQTEXT{idx}QQ", block)
+
+    cls = "math-display" if is_display else "math-inline"
+    return f'<span class="{cls}">{s}</span>'
+
+def transformar_matematica_en_linea(texto: str) -> str:
+    """Detecta expresiones matemáticas $...$ en el texto y las formatea a Math Mode."""
+    def repl_inline(m):
+        expr = m.group(1)
+        if not expr.strip():
+            return m.group(0)
+        return latex_a_math_html(expr, is_display=False)
+
+    return re.sub(r'(?<!\$)\$([^\$\n]+)\$(?!\$)', repl_inline, texto)
+
 def markdown_a_html(md: str) -> str:
     """Convierte Markdown estándar del informe a HTML limpio y tipografiado profesionalmente."""
     md = agrupar_imagenes(md)
@@ -79,9 +194,40 @@ def markdown_a_html(md: str) -> str:
     in_ul = False
     in_ol = False
     in_toc = False
+    in_display_math = False
+    math_buffer = []
 
     for line in lines:
         stripped = line.strip()
+
+        # Detección de bloques display math ($$ ... $$)
+        if stripped == "$$":
+            if in_display_math:
+                expr = "\n".join(math_buffer)
+                html_math = latex_a_math_html(expr, is_display=True)
+                html_lines.append(f'<div class="formula-box">{html_math}</div>')
+                math_buffer = []
+                in_display_math = False
+            else:
+                if in_ul: html_lines.append("</ul>"); in_ul = False
+                if in_ol: html_lines.append("</ol>"); in_ol = False
+                if in_table: html_lines.append("</table>"); in_table = False
+                in_display_math = True
+                math_buffer = []
+            continue
+
+        if in_display_math:
+            math_buffer.append(stripped)
+            continue
+
+        # Si el bloque display viene en una sola línea ($$expr$$)
+        if stripped.startswith("$$") and stripped.endswith("$$") and len(stripped) > 4:
+            if in_ul: html_lines.append("</ul>"); in_ul = False
+            if in_ol: html_lines.append("</ol>"); in_ol = False
+            expr = stripped[2:-2].strip()
+            html_math = latex_a_math_html(expr, is_display=True)
+            html_lines.append(f'<div class="formula-box">{html_math}</div>')
+            continue
 
         # Detección de Tabla de Contenido para formatearla en dos columnas
         if stripped == "## Tabla de Contenido":
@@ -137,7 +283,8 @@ def markdown_a_html(md: str) -> str:
             for p in parts:
                 c = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', p)
                 c = re.sub(r'`([^`]+)`', r'<code>\1</code>', c)
-                align_cls = ' class="num"' if re.match(r'^[\d\.,\s%×\-+]+$', c) and len(c) < 20 else ''
+                c = transformar_matematica_en_linea(c)
+                align_cls = ' class="num"' if re.match(r'^[\d\.,\s%×\-+]+$', c) and len(c) < 25 else ''
                 cells.append(f"<{tag}{align_cls}>{c}</{tag}>")
             html_lines.append(f"<tr>{''.join(cells)}</tr>")
             continue
@@ -169,12 +316,14 @@ def markdown_a_html(md: str) -> str:
         elif stripped.startswith("### "):
             if in_ul: html_lines.append("</ul>"); in_ul = False
             if in_ol: html_lines.append("</ol>"); in_ol = False
-            html_lines.append(f"<h3>{stripped[4:]}</h3>")
+            tit = transformar_matematica_en_linea(stripped[4:])
+            html_lines.append(f"<h3>{tit}</h3>")
             continue
         elif stripped.startswith("#### "):
             if in_ul: html_lines.append("</ul>"); in_ul = False
             if in_ol: html_lines.append("</ol>"); in_ol = False
-            html_lines.append(f"<h4>{stripped[5:]}</h4>")
+            tit = transformar_matematica_en_linea(stripped[5:])
+            html_lines.append(f"<h4>{tit}</h4>")
             continue
 
         # Citas en bloque (> ...)
@@ -183,6 +332,7 @@ def markdown_a_html(md: str) -> str:
             if in_ol: html_lines.append("</ol>"); in_ol = False
             cuerpo = stripped[2:]
             cuerpo = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', cuerpo)
+            cuerpo = transformar_matematica_en_linea(cuerpo)
             html_lines.append(f'<div class="callout">{cuerpo}</div>')
             continue
 
@@ -196,6 +346,7 @@ def markdown_a_html(md: str) -> str:
             cuerpo = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', cuerpo)
             cuerpo = re.sub(r'`([^`]+)`', r'<code>\1</code>', cuerpo)
             cuerpo = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', cuerpo)
+            cuerpo = transformar_matematica_en_linea(cuerpo)
             html_lines.append(f"<li>{cuerpo}</li>")
             continue
         elif in_ul and stripped == "":
@@ -212,6 +363,7 @@ def markdown_a_html(md: str) -> str:
             cuerpo = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', cuerpo)
             cuerpo = re.sub(r'`([^`]+)`', r'<code>\1</code>', cuerpo)
             cuerpo = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', cuerpo)
+            cuerpo = transformar_matematica_en_linea(cuerpo)
             html_lines.append(f"<li>{cuerpo}</li>")
             continue
         elif in_ol and stripped == "":
@@ -228,13 +380,8 @@ def markdown_a_html(md: str) -> str:
             cuerpo = re.sub(r'\*([^*]+)\*', r'<em>\1</em>', cuerpo)
             cuerpo = re.sub(r'`([^`]+)`', r'<code>\1</code>', cuerpo)
             cuerpo = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', cuerpo)
-            
-            # Fórmulas display
-            if cuerpo.startswith("$$") and cuerpo.endswith("$$"):
-                formula = cuerpo[2:-2].strip()
-                html_lines.append(f'<div class="formula-display">{formula}</div>')
-            else:
-                html_lines.append(f"<p>{cuerpo}</p>")
+            cuerpo = transformar_matematica_en_linea(cuerpo)
+            html_lines.append(f"<p>{cuerpo}</p>")
 
     if in_code: html_lines.append("</pre>")
     if in_table: html_lines.append("</table>")
@@ -363,6 +510,93 @@ PLANTILLA_WRAPPER = """<!DOCTYPE html>
     border-radius: 2px;
   }
 
+  /* ESTILOS DE MATH MODE */
+  .math-inline {
+    font-family: 'Cambria Math', 'Latin Modern Math', 'STIX Two Math', 'Times New Roman', serif;
+    font-size: 9.0pt;
+    color: #0f172a;
+    font-style: normal;
+  }
+  .math-display {
+    font-family: 'Cambria Math', 'Latin Modern Math', 'STIX Two Math', 'Times New Roman', serif;
+    font-size: 9.4pt;
+    color: #0f172a;
+  }
+  .formula-box {
+    text-align: center;
+    margin: 4px 0 6px 0;
+    padding: 3px 6px;
+    background: #f8fafc;
+    border: 0.5px solid #e2e8f0;
+    border-radius: 3px;
+    page-break-inside: avoid;
+  }
+  .math-op {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 8.5pt;
+    font-weight: 600;
+    color: #1e293b;
+    padding: 0 1px;
+  }
+  .math-text {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-style: normal;
+    font-size: 8.4pt;
+    color: #1e293b;
+  }
+  .sym-greek {
+    font-family: 'Cambria Math', 'Times New Roman', serif;
+    font-weight: 600;
+    color: #0f172a;
+  }
+  .math-boxed {
+    display: inline-block;
+    background: #eff6ff;
+    border: 1.5px solid #2563eb;
+    border-radius: 3px;
+    padding: 2px 7px;
+    font-weight: 600;
+    color: #1e3a8a;
+  }
+  .math-frac {
+    display: inline-flex;
+    flex-direction: column;
+    vertical-align: middle;
+    text-align: center;
+    padding: 0 2px;
+    font-size: 0.9em;
+  }
+  .frac-num {
+    border-bottom: 0.8px solid #334155;
+    padding-bottom: 1px;
+    line-height: 1.1;
+  }
+  .frac-den {
+    padding-top: 1px;
+    line-height: 1.1;
+  }
+  .math-sum {
+    display: inline-flex;
+    vertical-align: middle;
+    margin: 0 2px;
+  }
+  .sum-limits {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 0.75em;
+    line-height: 1.0;
+  }
+  .sum-sym {
+    font-size: 1.35em;
+    line-height: 1.0;
+    color: #1e293b;
+  }
+  .sum-limits .sup { margin-bottom: -1px; }
+  .sum-limits .sub { margin-top: -1px; }
+  .math-paren { font-size: 1.1em; color: #334155; }
+  .math-paren-big { font-size: 1.3em; color: #1e293b; vertical-align: -1px; }
+
   .figura-grid {
     display: flex;
     justify-content: space-between;
@@ -409,19 +643,6 @@ PLANTILLA_WRAPPER = """<!DOCTYPE html>
     padding: 4px 7px;
     margin: 4px 0 6px 0;
     font-size: 8.0pt;
-    page-break-inside: avoid;
-  }
-
-  .formula-display {
-    text-align: center;
-    font-family: 'Cambria Math', 'Times New Roman', serif;
-    font-size: 8.6pt;
-    font-style: italic;
-    margin: 3px 0 5px 0;
-    padding: 2.5px 0;
-    background: #f7fafc;
-    border-radius: 2px;
-    border: 0.5px solid #edf2f7;
     page-break-inside: avoid;
   }
 
@@ -481,7 +702,7 @@ def compilar_pdf() -> bool:
     with open(RUTA_README, "r", encoding="utf-8") as f:
         md = f.read()
 
-    print("Convirtiendo README.md a HTML estilizado...")
+    print("Convirtiendo README.md a HTML estilizado con Math Mode...")
     cuerpo = markdown_a_html(md)
     html_completo = PLANTILLA_WRAPPER.replace("__CUERPO__", cuerpo)
 
